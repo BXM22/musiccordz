@@ -1,9 +1,11 @@
 from fastapi import FastAPI, HTTPException
 
 from .theory import KeyMode, diatonic_triads, scale_object
+from .v1.app import v1_app
 
 
 app = FastAPI()
+app.mount("/api/v1", v1_app)
 
 
 @app.get("/")
