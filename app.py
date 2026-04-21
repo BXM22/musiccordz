@@ -50,30 +50,72 @@ def _normalize_note(note: str) -> str:
     return n
 
 
-def _diatonic_triads(key: str, mode: KeyMode) -> list[str]:
+def _prefer_flats(raw_key: str, normalized_key: str) -> bool:
+    return ("b" in raw_key.strip()) or (normalized_key in _TYPICAL_FLAT_KEYS)
+
+
+def _speller(prefer_flats: bool) -> list[str]:
+    return _SEMITONE_TO_FLAT_NOTE if prefer_flats else _SEMITONE_TO_SHARP_NOTE
+
+
+def _scale_degrees(mode: KeyMode) -> list[int]:
+    return _MAJOR_SCALE if mode == KeyMode.major else _NATURAL_MINOR_SCALE
+
+
+def _scale_notes(key: str, mode: KeyMode) -> list[str]:
     raw_key = key.strip()
     root = _normalize_note(key)
     root_semitone = _NOTE_TO_SEMITONE[root]
-    prefer_flats = ("b" in raw_key) or (root in _TYPICAL_FLAT_KEYS)
-    spell = _SEMITONE_TO_FLAT_NOTE if prefer_flats else _SEMITONE_TO_SHARP_NOTE
+    spell = _speller(_prefer_flats(raw_key, root))
+    return [spell[(root_semitone + d) % 12] for d in _scale_degrees(mode)]
 
+
+def _degrees_map(notes: list[str]) -> dict[str, str]:
+    return {str(i + 1): note for i, note in enumerate(notes)}
+
+
+def _relative_key_name(key: str, mode: KeyMode) -> dict[str, str]:
+    notes = _scale_notes(key, mode)
     if mode == KeyMode.major:
-        scale = _MAJOR_SCALE
+        return {"minor": f"{notes[5]} minor"}
+    return {"major": f"{notes[2]} major"}
+
+
+def _diatonic_triads(key: str, mode: KeyMode) -> list[str]:
+    notes = _scale_notes(key, mode)
+    if mode == KeyMode.major:
         qualities = ["", "m", "m", "", "", "m", "dim"]
     else:
-        scale = _NATURAL_MINOR_SCALE
         qualities = ["m", "dim", "", "m", "m", "", ""]
+    return [f"{note}{quality}" for note, quality in zip(notes, qualities, strict=True)]
 
-    triads: list[str] = []
-    for degree, quality in zip(scale, qualities, strict=True):
-        note = spell[(root_semitone + degree) % 12]
-        triads.append(f"{note}{quality}")
-    return triads
+
+def _scale_object(tonic: str, mode: KeyMode) -> dict:
+    notes = _scale_notes(tonic, mode)
+    name = f"{_normalize_note(tonic)} {mode.value.capitalize()}"
+    return {
+        "name": name,
+        "tonic": _normalize_note(tonic),
+        "mode": mode.value,
+        "notes": notes,
+        "degrees": _degrees_map(notes),
+        "relative": _relative_key_name(tonic, mode),
+        "chords": {"diatonic_triads": _diatonic_triads(tonic, mode)},
+    }
 
 
 @app.get("/")
 def home():
     return {"message": "API is running"}
+
+
+@app.get("/scale/{tonic}/{mode}")
+def get_scale(tonic: str, mode: KeyMode):
+    try:
+        return _scale_object(tonic, mode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
 
 @app.get("/chords")
 def get_chords(key: str, mode: KeyMode = KeyMode.major):
@@ -84,6 +126,6 @@ def get_chords(key: str, mode: KeyMode = KeyMode.major):
 
     return {
         "key": key,
-        "mode": mode,
+        "mode": mode.value,
         "chords": chords,
     }
