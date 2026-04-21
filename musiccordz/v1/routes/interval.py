@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from ...theory import NOTE_TO_SEMITONE, normalize_note
 from .note import _parse_note  # reuse parsing rules
@@ -32,7 +32,10 @@ def _note_to_semitone_value(n: str) -> int:
 
 
 @router.get("/interval")
-def interval(from_: str, to: str):  # `from` is reserved, FastAPI uses from_ query param
+def interval(
+    from_: str = Query(..., alias="from"),
+    to: str = Query(...),
+):
     try:
         a = _note_to_semitone_value(from_)
         b = _note_to_semitone_value(to)

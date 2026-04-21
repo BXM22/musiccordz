@@ -41,6 +41,23 @@ Base path: `/api/v1`
   - `GET /api/v1/explain/chord/Am7`
   - `GET /api/v1/explain/scale/C/major`
 
+## Run locally
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 -m uvicorn app:app --reload
+```
+
+Then try:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/health"
+curl "http://127.0.0.1:8000/api/v1/scale/C/major"
+curl "http://127.0.0.1:8000/api/v1/chord/Am7"
+```
+
 ## Deployed examples (Render)
 
 - Health:
